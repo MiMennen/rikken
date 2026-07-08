@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rikken</title>
 <style>
-  :root{--felt:#0b6b3a;--felt2:#095a30;--gold:#e8c86a;--card:#fffdf7;}
+:root{--felt:#0b6b3a;--felt2:#095a30;--gold:#e8c86a;--card:#fffdf7;
+    --card-w:62px;--card-h:88px;--r-size:18px;--s-size:22px;}
   *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,sans-serif}
-  body{margin:0;background:#05331d;color:#f2f2f2}
+  body{margin:0;background:#05331d;color:#f2f2f2;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
   h1{text-align:center;font-weight:600;letter-spacing:3px;margin:12px}
   #err{color:#ff8a8a;text-align:center;min-height:18px}
-  #table{position:relative;max-width:900px;margin:10px auto;height:560px;
+  #table{position:relative;width:100%;max-width:900px;aspect-ratio:900/560;margin:10px auto;
     background:radial-gradient(ellipse at center,var(--felt),var(--felt2));
     border:10px solid #3c2415;border-radius:130px;box-shadow:0 8px 30px #000a}
   .seat{position:absolute;width:160px;text-align:center;transform:translate(-50%,-50%)}
@@ -29,17 +30,17 @@
   .bubble:after{content:'';position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);
     border:6px solid transparent;border-top-color:#fff}
   #center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:280px;height:240px}
-  .card{width:62px;height:88px;background:var(--card);border-radius:8px;color:#111;
+  .card{width:var(--card-w);height:var(--card-h);background:var(--card);border-radius:8px;color:#111;
     display:inline-flex;flex-direction:column;justify-content:space-between;padding:6px;
     font-weight:700;box-shadow:0 2px 6px #0006}
-  .card .r{font-size:18px}.card .s{font-size:22px;align-self:flex-end}
+  .card .r{font-size:var(--r-size)}.card .s{font-size:var(--s-size);align-self:flex-end}
   .card.red{color:#c1121f}
   #center .card{position:absolute;transition:all .25s ease}
   .who{position:absolute;bottom:-17px;left:0;right:0;text-align:center;font-size:11px;color:#fff}
   #hand{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:18px auto;max-width:960px}
-  #hand .card{cursor:default;transition:transform .1s}
+  #hand .card{cursor:default;transition:transform .1s;touch-action:manipulation}
   #hand .card.legal{cursor:pointer;outline:2px solid var(--gold)}
-  #hand .card.legal:hover{transform:translateY(-12px)}
+  @media(hover:hover){#hand .card.legal:hover{transform:translateY(-12px)}}
   #hand .card.illegal{opacity:.45}
   #panel{max-width:900px;margin:10px auto;text-align:center;min-height:56px}
   #status{max-width:900px;margin:6px auto;text-align:center;font-size:14px;opacity:.92;min-height:20px}
@@ -54,14 +55,14 @@
   .suitpick .pick.red{color:#c1121f}
   .suitpick .pick.dim{opacity:.25;cursor:default}
   .suitpick .pick.sel{outline:3px solid var(--gold)}
-  
+
   #announce{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
     background:#111a;backdrop-filter:blur(3px);color:#fff;padding:20px 34px;border-radius:16px;
     border:2px solid var(--gold);box-shadow:0 8px 30px #000b;text-align:center;z-index:20;
     font-size:20px;font-weight:600;cursor:pointer;min-width:240px;animation:pop .2s ease}
   #announce .sub{font-size:15px;font-weight:400;opacity:.9;margin-top:6px}
   #announce .tap{font-size:12px;opacity:.6;margin-top:10px}
-  
+
   #moment{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);
     background:#111c;backdrop-filter:blur(4px);padding:18px 30px;border-radius:16px;
     text-align:center;z-index:22;animation:pop .25s ease;max-width:80%}
@@ -69,6 +70,29 @@
   #moment .big.good{color:#7CFC9A}
   #moment .big.bad{color:#ff8a8a}
   #moment .small{font-size:14px;opacity:.9;margin-top:6px;color:#fff}
+
+/* ---- mobile (portrait phones, iPhone 14+) ---- */
+  @media(max-width:600px){
+    h1{font-size:20px;letter-spacing:2px;margin:8px}
+    #table{aspect-ratio:1/1;border-width:6px;border-radius:66px}      /* fix #2: taller table → seat text clears the pile */
+    .seat{width:88px}
+    .seat .meta{font-size:11px}
+    #east{left:87%}#west{left:13%}
+    #center{transform:translate(-50%,-50%) scale(.52)}               /* fix #2: smaller central pile */
+    #hand{--card-w:52px;--card-h:74px;--r-size:14px;--s-size:16px;
+      flex-wrap:nowrap;gap:0;max-width:100%;margin:14px auto;padding:0 6px;
+      padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+    #hand .card{position:relative;margin-left:-28px;justify-content:flex-start} /* fix #1: stack a corner index top-left */
+    #hand .card:first-child{margin-left:0}
+    #hand .card .r{line-height:1}
+    #hand .card .s{align-self:flex-start;line-height:1;margin-top:1px}          /* fix #1: suit sits under the rank → always visible in the fan */
+    #hand .card.illegal{opacity:1;filter:brightness(.86) saturate(.85)}        /* fix #3: opaque + dimmed, so cards don't bleed through */
+    #hand .card.lifted{transform:translateY(-22px);z-index:50;
+      box-shadow:0 8px 18px #000b;outline:3px solid var(--gold)}
+    #panel,#status{max-width:100%;padding:0 8px}
+    #announce{font-size:17px;padding:16px 22px;min-width:200px}
+    #moment .big{font-size:20px}
+  }
 </style>
 </head>
 <body>
@@ -100,6 +124,7 @@ let SEAT=0;   // set from state.viewerSeat once loaded
 
 const SCREEN=['south','west','north','east'];               // clockwise from viewer
 const REL_POS=[{x:0,y:72},{x:-96,y:0},{x:0,y:-72},{x:96,y:0}]; // s,w,n,e
+const TOUCH = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 const relOf=seat=>(seat-SEAT+4)%4;
 const seatDiv=seat=>document.getElementById(SCREEN[relOf(seat)]);
 
@@ -115,12 +140,22 @@ let blindArmed=false;
 function armBlindLead(s){
   blindArmed=true;
   document.getElementById('status').textContent=
-    'Blind lead: click ANY card to play it face-down and force out the A'+SUITS[s.calledSuitForBlind]+'.';
-  // make ALL hand cards clickable for the face-down choice
-  document.querySelectorAll('#hand .card').forEach(el=>{
-    el.classList.add('legal'); el.classList.remove('illegal');
-    el.onclick=()=>{ blindArmed=false;
+    'Blind lead: tap ANY card to play it face-down and force out the A'+SUITS[s.calledSuitForBlind]+'.';
+  document.querySelectorAll('#hand .card').forEach(old=>{
+    const el=old.cloneNode(true);                 // clone strips the old play listeners
+    el.classList.add('legal'); el.classList.remove('illegal','lifted');
+    old.replaceWith(el);
+    const commit=()=>{ blindArmed=false;
       act({action:'play', card:+el.dataset.id, faceDown:true, announced:s.calledSuitForBlind}); };
+    if(TOUCH){
+      el.addEventListener('click',()=>{
+        if(el.classList.contains('lifted')) commit();
+        else{ document.querySelectorAll('#hand .card.lifted').forEach(c=>c.classList.remove('lifted'));
+              el.classList.add('lifted'); }
+      });
+    }else{
+      el.addEventListener('click',commit);
+    }
   });
 }
 
@@ -371,9 +406,23 @@ function renderHand(s){
   (s.hand||[]).forEach(card=>{
     const el=cardEl(card.id);
     if(canPlay){
-      if(legal.has(card.id)){el.classList.add('legal');
-        el.addEventListener('click',()=>act({action:'play',card:card.id}));}
-      else el.classList.add('illegal');
+      if(legal.has(card.id)){
+        el.classList.add('legal');
+        if(TOUCH){
+          el.addEventListener('click',()=>{
+            if(el.classList.contains('lifted')){            // 2nd tap on raised card → play
+              act({action:'play',card:card.id});
+            }else{                                           // 1st tap → lift & reveal, un-lift others
+              h.querySelectorAll('.card.lifted').forEach(c=>c.classList.remove('lifted'));
+              el.classList.add('lifted');
+            }
+          });
+        }else{
+          el.addEventListener('click',()=>act({action:'play',card:card.id})); // desktop: unchanged
+        }
+      }else{
+        el.classList.add('illegal');
+      }
     }
     h.appendChild(el);
   });
