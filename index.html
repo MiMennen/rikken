@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rikken</title>
+<style>
+  :root{--felt:#0b6b3a;--felt2:#095a30;--gold:#e8c86a;--card:#fffdf7;}
+  *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,sans-serif}
+  body{margin:0;background:#05331d;color:#f2f2f2}
+  h1{text-align:center;font-weight:600;letter-spacing:3px;margin:12px}
+  #err{color:#ff8a8a;text-align:center;min-height:18px}
+  #table{position:relative;max-width:900px;margin:10px auto;height:560px;
+    background:radial-gradient(ellipse at center,var(--felt),var(--felt2));
+    border:10px solid #3c2415;border-radius:130px;box-shadow:0 8px 30px #000a}
+  .seat{position:absolute;width:160px;text-align:center;transform:translate(-50%,-50%)}
+  .seat .name{font-weight:600}
+  .seat .meta{font-size:12px;opacity:.85}
+  .seat .tricks{font-size:13px;font-weight:700;color:var(--gold);margin-top:2px}
+  .seat.active{background:#0004;border-radius:12px;padding:6px 0;box-shadow:0 0 16px var(--gold)}
+  .seat.active .name{color:var(--gold)}
+  .badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;
+    background:#0003;border:1px solid #fff3;margin-left:3px}
+  #south{left:50%;top:90%}#north{left:50%;top:10%}#east{left:90%;top:50%}#west{left:10%;top:50%}
+  .bubble{position:absolute;left:50%;top:-8px;transform:translate(-50%,-100%);
+    background:#fff;color:#111;padding:3px 11px;border-radius:12px;font-size:13px;
+    font-weight:700;white-space:nowrap;box-shadow:0 3px 10px #0008;z-index:6}
+  .bubble.pass{background:#c8ccd2}
+  .bubble:after{content:'';position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:#fff}
+  #center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:280px;height:240px}
+  .card{width:62px;height:88px;background:var(--card);border-radius:8px;color:#111;
+    display:inline-flex;flex-direction:column;justify-content:space-between;padding:6px;
+    font-weight:700;box-shadow:0 2px 6px #0006}
+  .card .r{font-size:18px}.card .s{font-size:22px;align-self:flex-end}
+  .card.red{color:#c1121f}
+  #center .card{position:absolute;transition:all .25s ease}
+  .who{position:absolute;bottom:-17px;left:0;right:0;text-align:center;font-size:11px;color:#fff}
+  #hand{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:18px auto;max-width:960px}
+  #hand .card{cursor:default;transition:transform .1s}
+  #hand .card.legal{cursor:pointer;outline:2px solid var(--gold)}
+  #hand .card.legal:hover{transform:translateY(-12px)}
+  #hand .card.illegal{opacity:.45}
+  #panel{max-width:900px;margin:10px auto;text-align:center;min-height:56px}
+  #status{max-width:900px;margin:6px auto;text-align:center;font-size:14px;opacity:.92;min-height:20px}
+  button{background:var(--gold);border:none;color:#222;font-weight:700;padding:8px 14px;margin:4px;
+    border-radius:8px;cursor:pointer}
+  button.sec{background:#2b6cb0;color:#fff}button:disabled{opacity:.4;cursor:default}
+  input{padding:9px;border-radius:8px;border:none;font-size:15px}
+  .suitpick{margin:6px 0}
+  .suitpick .pick{display:inline-flex;width:44px;height:44px;margin:3px;border-radius:8px;
+    background:var(--card);color:#111;align-items:center;justify-content:center;font-size:22px;
+    font-weight:700;cursor:pointer;box-shadow:0 2px 6px #0006}
+  .suitpick .pick.red{color:#c1121f}
+  .suitpick .pick.dim{opacity:.25;cursor:default}
+  .suitpick .pick.sel{outline:3px solid var(--gold)}
+  
+  #announce{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    background:#111a;backdrop-filter:blur(3px);color:#fff;padding:20px 34px;border-radius:16px;
+    border:2px solid var(--gold);box-shadow:0 8px 30px #000b;text-align:center;z-index:20;
+    font-size:20px;font-weight:600;cursor:pointer;min-width:240px;animation:pop .2s ease}
+  #announce .sub{font-size:15px;font-weight:400;opacity:.9;margin-top:6px}
+  #announce .tap{font-size:12px;opacity:.6;margin-top:10px}
+  
+  #moment{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);
+    background:#111c;backdrop-filter:blur(4px);padding:18px 30px;border-radius:16px;
+    text-align:center;z-index:22;animation:pop .25s ease;max-width:80%}
+  #moment .big{font-size:24px;font-weight:700}
+  #moment .big.good{color:#7CFC9A}
+  #moment .big.bad{color:#ff8a8a}
+  #moment .small{font-size:14px;opacity:.9;margin-top:6px;color:#fff}
+</style>
+</head>
+<body>
+  <h1>R I K K E N</h1>
+  <div id="err"></div>
+  <div id="table">
+    <div class="seat" id="north"></div>
+    <div class="seat" id="east"></div>
+    <div class="seat" id="south"></div>
+    <div class="seat" id="west"></div>
+    <div id="center"></div>
+  </div>
+  <div id="status"></div>
+  <div id="panel"></div>
+  <div id="hand"></div>
+
+<script>
+const SUITS=['♣','♦','♥','♠'];
+const CONTRACT_LABEL={rik:'Rik',rik_beter:'Rik Beter',solo8:'Solo 8',solo9:'Solo 9',
+  solo10:'Solo 10',solo11:'Solo 11',solo12:'Solo 12',solo13:'Solo 13',troela:'Troela',
+  misere:'Misère',piek:'Piek',open_misere:'Open Misère',open_piek:'Open Piek',
+  open_misere_praatje:'Open Misère + praatje',pass_schoppenmie:'Schoppen Mie'};
+const BID_LABEL={pass:'Pass',rik:'Rik',rik_beter:'Rik Beter',solo8:'Solo 8',
+  troela:'Troela',misere:'Misère'};
+
+const params=new URLSearchParams(location.search);
+const TOKEN=params.get('token');
+let SEAT=0;   // set from state.viewerSeat once loaded
+
+const SCREEN=['south','west','north','east'];               // clockwise from viewer
+const REL_POS=[{x:0,y:72},{x:-96,y:0},{x:0,y:-72},{x:96,y:0}]; // s,w,n,e
+const relOf=seat=>(seat-SEAT+4)%4;
+const seatDiv=seat=>document.getElementById(SCREEN[relOf(seat)]);
+
+let latest=null, busy=false, animating=false;
+let animShown=0, animHand=-1, tableCards=[], centerWinner=null;
+let bidShown=0, firstLoad=true;
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+
+let announcedHand=-1;     // which handNumber we've already announced
+let announceTimer=null;
+
+let blindArmed=false;
+function armBlindLead(s){
+  blindArmed=true;
+  document.getElementById('status').textContent=
+    'Blind lead: click ANY card to play it face-down and force out the A'+SUITS[s.calledSuitForBlind]+'.';
+  // make ALL hand cards clickable for the face-down choice
+  document.querySelectorAll('#hand .card').forEach(el=>{
+    el.classList.add('legal'); el.classList.remove('illegal');
+    el.onclick=()=>{ blindArmed=false;
+      act({action:'play', card:+el.dataset.id, faceDown:true, announced:s.calledSuitForBlind}); };
+  });
+}
+
+function renderCenter(){
+  const c=document.getElementById('center'); c.innerHTML='';
+  tableCards.forEach(tc=>{
+    const pos=REL_POS[relOf(tc.seat)];
+    const el = (tc.card===null || tc.card===undefined)
+      ? Object.assign(document.createElement('div'),{className:'card',textContent:'🂠',
+          style:'align-items:center;justify-content:center;font-size:34px;background:#264d8f;color:#fff'})
+      : cardEl(tc.card);
+    el.style.left='50%'; el.style.top='50%';
+    el.style.transform=`translate(-50%,-50%) translate(${pos.x}px,${pos.y}px)`;
+    if(centerWinner===tc.seat) el.style.outline='3px solid var(--gold)';
+    const nm=(latest&&latest.seats.find(x=>x.seat===tc.seat)||{}).name||('s'+tc.seat);
+    const w=document.createElement('div'); w.className='who'; w.textContent=nm; el.appendChild(w);
+    c.appendChild(el);
+  });
+}
+
+function cardEl(id){
+  const suit=Math.floor(id/13), rank=id%13+2;
+  const rlabel={11:'J',12:'Q',13:'K',14:'A'}[rank]||rank;
+  const d=document.createElement('div');
+  d.className='card'+((suit===1||suit===2)?' red':'');
+  d.innerHTML=`<span class="r">${rlabel}</span><span class="s">${SUITS[suit]}</span>`;
+  d.dataset.id=id;
+  return d;
+}
+
+tableCards.forEach(tc=>{
+    const pos=REL_POS[relOf(tc.seat)];
+    const el = (tc.card===null)
+      ? Object.assign(document.createElement('div'),{className:'card',textContent:'🂠',
+          style:'align-items:center;justify-content:center;font-size:34px;background:#264d8f;color:#fff'})
+      : cardEl(tc.card);
+    el.style.left='50%'; el.style.top='50%';
+    el.style.transform=`translate(-50%,-50%) translate(${pos.x}px,${pos.y}px)`;
+    if(centerWinner===tc.seat) el.style.outline='3px solid var(--gold)';
+    const nm=(latest&&latest.seats.find(x=>x.seat===tc.seat)||{}).name||('s'+tc.seat);
+    const w=document.createElement('div'); w.className='who'; w.textContent=nm; el.appendChild(w);
+    document.getElementById('center').appendChild(el);
+  });
+  
+ 
+function showBubble(seat,text,isPass){
+  const el=seatDiv(seat); if(!el) return;
+  let b=el.querySelector('.bubble');
+  if(!b){ b=document.createElement('div'); el.appendChild(b); }
+  b.className='bubble'+(isPass?' pass':''); b.textContent=text;
+}
+function clearBubbles(){ document.querySelectorAll('.bubble').forEach(b=>b.remove()); }
+
+async function animateBids(log){
+  for(let i=bidShown;i<log.length;i++){
+    const bd=log[i];
+    showBubble(bd.seat, BID_LABEL[bd.bid]||bd.bid, bd.bid==='pass');
+    bidShown=i+1;
+    await delay(750);
+  }
+}
+
+async function animate(log){
+  for(let i=animShown; i<log.length; i++){
+    const play=log[i], prev=i>0?log[i-1]:null;
+    if(prev && prev.trick!==play.trick){
+      centerWinner=prev.winner; renderCenter(); await delay(1200);
+      centerWinner=null; tableCards=[]; renderCenter();
+    }
+    tableCards.push({seat:play.seat,card:play.card});
+    renderCenter(); await delay(600);
+    animShown=i+1;
+  }
+  const last=log[log.length-1];
+  if(last && last.winner!==null){
+    centerWinner=last.winner; renderCenter(); await delay(1200);
+    if((latest.currentTrick||[]).length===0){ tableCards=[]; centerWinner=null; renderCenter(); }
+  }
+}
+
+async function handleState(s){
+  if(!s) return;
+  if(s.error){document.getElementById('err').textContent=s.error; return;}
+  document.getElementById('err').textContent='';
+  latest=s;
+  if(typeof s.viewerSeat==='number') SEAT=s.viewerSeat;
+
+  if(s.handNumber!==animHand){
+    animHand=s.handNumber; animShown=0; tableCards=[]; centerWinner=null; bidShown=0; clearBubbles();
+  }
+
+  // First state after (re)loading: snap to "now"; do NOT replay history or re-announce.
+  if(firstLoad){
+    firstLoad=false;
+    bidShown=(s.bidLog||[]).length;
+    animShown=(s.playLog||[]).length;
+    if(['playing','hand_scoring','declaring'].includes(s.status)) announcedHand=s.handNumber;
+    clearBubbles();
+    if(s.status==='bidding'||s.status==='declaring')
+      (s.bidLog||[]).forEach(bd=>showBubble(bd.seat, BID_LABEL[bd.bid]||bd.bid, bd.bid==='pass'));
+    tableCards=(s.currentTrick||[]).map(p=>({seat:p.seat,card:p.card}));
+    renderSeats(s); renderStatus(s); renderCenter(); renderHand(s); renderPanel(s,false);
+    return;
+  }
+
+  renderSeats(s); renderStatus(s);
+
+  const blog=s.bidLog||[], plog=s.playLog||[];
+  const needBids  = blog.length>bidShown;
+  const needPlays = plog.length>animShown;
+  const needAnnounce = s.status==='playing' && s.handNumber!==announcedHand;
+
+  if((needBids||needPlays||needAnnounce) && !animating){
+    animating=true;
+    renderHand(s); renderPanel(s,true);
+    try{
+      if(needBids)  await animateBids(blog);
+      if(needAnnounce){ announcedHand=s.handNumber; clearBubbles(); await showDeclaration(s); }
+      if(needPlays){ clearBubbles(); await animate(plog); }
+	  // avoidance early-fail moment
+      if(s.status==='hand_scoring' && s.lastResult && (s.lastResult.target===0 || s.lastResult.target===1)
+         && !s.lastResult.made){
+        const nm=(s.seats.find(x=>x.seat===s.lastResult.declarer)||{}).name||'The bidder';
+        const goal = s.lastResult.target===0 ? 'Misère' : 'Piek';
+        showMoment('🎣 '+goal+' failed!', nm+' was forced to take a trick', 'bad');
+      }
+	  // kapot celebration
+      if(s.status==='hand_scoring' && s.lastResult && s.lastResult.made
+         && s.lastResult.sideTricks===13){
+        showMoment('🎉 KAPOT!', 'All 13 tricks taken!', 'good');
+      }
+    } finally { animating=false; }
+  } else if(!animating){
+    if(plog.length>0 && (s.status==='playing'||s.status==='hand_scoring')) clearBubbles();
+    tableCards=(s.currentTrick||[]).map(p=>({seat:p.seat,card:p.card}));
+    centerWinner=null; renderCenter();
+  }
+  
+  
+
+  if(!animating){ renderHand(s); renderPanel(s,false); }
+}
+
+async function poll(){
+  if(busy||animating) return;
+  if(latest && latest.yourTurn) return;
+  try{
+    const qs = TOKEN ? `token=${TOKEN}` : `game=${GAME}&seat=${SEAT}`;
+    if(!TOKEN) return;
+    const r=await fetch(`state.php?token=${encodeURIComponent(TOKEN)}`);
+    await handleState(await r.json());
+  }catch(e){}
+}
+
+async function act(body){
+  if(busy||animating) return;
+  busy=true; document.getElementById('err').textContent='';
+  try{
+    const r=await fetch('action.php',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:TOKEN, ...body})});
+    const text=await r.text();
+    let s; try{ s=JSON.parse(text); }
+    catch(e){ document.getElementById('err').textContent='server: '+text.slice(0,300); busy=false; return; }
+    await handleState(s);
+  }catch(e){ document.getElementById('err').textContent='network error'; }
+  busy=false;
+}
+
+function renderSeats(s){
+  s.seats.forEach(st=>{
+    const el=seatDiv(st.seat); if(!el) return;
+    const bubble=el.querySelector('.bubble');           // preserve any bid bubble
+    el.classList.toggle('active', s.currentSeat===st.seat);
+    let tags='';
+    if(st.seat===s.dealerSeat) tags+='<span class="badge">dealer</span>';
+    if(s.declarerSeat===st.seat) tags+='<span class="badge">declarer</span>';
+    if(s.partnerRevealed && s.partnerSeat===st.seat) tags+='<span class="badge">partner</span>';
+    const won=(s.tricksWon&&s.tricksWon[st.seat])||0;
+    el.innerHTML=`<div class="name">${st.name}${st.type==='bot'?' 🤖':''} ${tags}</div>`
+      +`<div class="meta">Score ${st.score>=0?'+':''}${st.score}</div>`
+      +`<div class="tricks">🃏 ${won} trick${won===1?'':'s'}</div>`;
+    if(bubble) el.appendChild(bubble);
+  });
+  // after the seats.forEach loop in renderSeats, add:
+  if(s.openHand){
+    const el=seatDiv(s.openHand.seat);
+    if(el){
+      const strip=document.createElement('div');
+      strip.style.cssText='margin-top:4px;display:flex;gap:2px;flex-wrap:wrap;justify-content:center;max-width:170px';
+      s.openHand.cards.forEach(c=>{
+        const suit=Math.floor(c.id/13);
+        const mini=document.createElement('span');
+        mini.textContent=c.label;
+        mini.style.cssText='font-size:12px;background:#fff;color:'+((suit===1||suit===2)?'#c1121f':'#111')
+          +';border-radius:3px;padding:0 3px';
+        strip.appendChild(mini);
+      });
+      el.appendChild(strip);
+    }
+  }
+}
+
+function showDeclaration(s){
+  return new Promise(resolve=>{
+    const el=document.createElement('div'); el.id='announce';
+    const decl=(s.seats.find(x=>x.seat===s.declarerSeat)||{}).name||'—';
+    let sub;
+    if(s.contract==='pass_schoppenmie'){ sub='Everybody passed'; }
+    else {
+      const parts=[];
+      parts.push(s.trumpSuit!=null ? ('trump '+SUITS[s.trumpSuit]) : 'no trump');
+      if(s.calledAceSuit!=null) parts.push('called A'+SUITS[s.calledAceSuit]);
+      sub=`${decl} plays · ${parts.join(' · ')}`;
+    }
+    el.innerHTML=`<div>${CONTRACT_LABEL[s.contract]||s.contract}</div>`
+      +`<div class="sub">${sub}</div><div class="tap">tap to start</div>`;
+    let done=false, t=null;
+    const finish=()=>{ if(done) return; done=true; if(t) clearTimeout(t); el.remove(); resolve(); };
+    el.addEventListener('click',finish);
+    document.getElementById('table').appendChild(el);
+    t=setTimeout(finish, 5000);
+  });
+}
+
+function renderStatus(s){
+  let msg=`Hand ${s.handNumber}`;
+  if(s.targetScore) msg+=` · first to ${s.targetScore}`;
+  else if(s.maxHands) msg+=`/${s.maxHands}`;
+  msg+=' · ';
+  if(s.status==='bidding') msg+='Bidding';
+  else if(s.status==='declaring') msg+=`Declaring ${CONTRACT_LABEL[s.contract]||''}`;
+  else if(s.status==='playing') msg+=`${CONTRACT_LABEL[s.contract]||''}`
+      +(s.trumpSuit!=null?` · trump ${SUITS[s.trumpSuit]}`:' · no trump')
+      +(s.calledAceSuit!=null?` · called A${SUITS[s.calledAceSuit]}`:'');
+  else if(s.status==='hand_scoring') msg+='Hand over';
+  else if(s.status==='finished') msg+='Game finished';
+  if(s.youArePartner && !s.partnerRevealed) msg+=' · 🤫 you are the secret partner';
+  if(s.openHand && s.openHand.praatje) msg+=' · 🗣️ defenders conferring';
+  document.getElementById('status').textContent=msg;
+}
+
+function renderHand(s){
+  const h=document.getElementById('hand'); h.innerHTML='';
+  const legal=new Set(s.legalCards||[]);
+  const caughtUp=(s.playLog||[]).length===animShown;
+  const canPlay=s.status==='playing' && s.yourTurn && !animating && caughtUp;
+  (s.hand||[]).forEach(card=>{
+    const el=cardEl(card.id);
+    if(canPlay){
+      if(legal.has(card.id)){el.classList.add('legal');
+        el.addEventListener('click',()=>act({action:'play',card:card.id}));}
+      else el.classList.add('illegal');
+    }
+    h.appendChild(el);
+  });
+}
+
+function renderPanel(s,waiting){
+  const p=document.getElementById('panel'); p.innerHTML='';
+  if(waiting){ p.innerHTML='<em>…</em>'; return; }
+
+if(s.status==='bidding' && s.yourTurn){
+    const pass=document.createElement('button'); pass.className='sec'; pass.textContent='Pass';
+    pass.addEventListener('click',()=>act({action:'bid',bid:'pass'})); p.appendChild(pass);
+    (s.bidOptions||[]).forEach(bid=>{
+      const b=document.createElement('button'); b.textContent=(CONTRACT_LABEL[bid]||bid);
+      b.addEventListener('click',()=>act({action:'bid',bid})); p.appendChild(b);
+    });
+    return;
+  }
+  if(s.status==='declaring' && s.yourTurn){ declaringControls(s,p); return; }
+if(s.status==='hand_scoring'){
+    if(s.lastResult) p.appendChild(resultBox(s));
+    const maxScore = Math.max(...(s.seats||[]).map(x=>x.score));
+    const isLast = (s.maxHands && s.handsPlayed>=s.maxHands)
+                || (s.targetScore && maxScore >= s.targetScore);
+    const b=document.createElement('button');
+    b.textContent = isLast ? 'See final standings ▶' : 'Next hand ▶';
+    b.addEventListener('click',()=>act({action:'next'}));
+    p.appendChild(b);
+    return;
+  }
+  if(s.status==='playing' && s.yourTurn){
+    let html='<em>Your turn — click a highlighted card.</em>';
+    p.innerHTML=html;
+    if(s.canBlindLead){
+      const b=document.createElement('button'); b.className='sec';
+      b.textContent='🂠 Blind lead ('+SUITS[s.calledSuitForBlind]+')';
+      b.addEventListener('click',()=>armBlindLead(s));
+      p.appendChild(b);
+    }
+    return;
+  }
+  
+  if(s.status==='finished'){
+    p.appendChild(finalScreen(s));
+    return;
+  }
+  else p.innerHTML='<em>Waiting…</em>';
+}
+
+function suitPicker(label,fixed,onPick,forbidden=null){
+  const row=document.createElement('div'); row.className='suitpick';
+  row.innerHTML=`<span>${label}: </span>`;
+  [0,1,2,3].forEach(sv=>{
+    const disabled = (fixed!=null && sv!==fixed) || (forbidden!=null && sv===forbidden);
+    const d=document.createElement('div');
+    d.className='pick'+((sv===1||sv===2)?' red':'')+(disabled?' dim':'');
+    d.textContent=SUITS[sv];
+    if(fixed===sv) d.classList.add('sel');
+    if(!disabled){
+      d.addEventListener('click',()=>{
+        [...row.querySelectorAll('.pick')].forEach(x=>x.classList.remove('sel'));
+        d.classList.add('sel'); onPick(sv);
+      });
+    }
+    if(forbidden===sv) d.title='Cannot choose the suit of your ace as trump';
+    row.appendChild(d);
+  });
+  return row;
+}
+
+function declaringControls(s,p){
+  const contract=s.contract;
+    // Misère / Piek: no trump, no partner, nothing to choose -> auto-declare.
+  if(contract==='misere' || contract==='piek'){
+    p.innerHTML=`<em>Declaring ${CONTRACT_LABEL[contract]} — no trump to choose.</em>`;
+    // fire the empty declaration once
+    if(!s._autoDeclared){ s._autoDeclared=true;
+      act({action:'declare', trump:null, called:null}); }
+    return;
+  }
+  const needTrump=contract!=='rik_beter';
+  const isTroela4=contract==='troela' && s.declarerSeat===s.viewerSeat && s.partnerSeat===null;
+  const needCalled=contract==='rik'||contract==='rik_beter'||isTroela4;
+  const state={trump: contract==='rik_beter'?2:null, called:null};
+
+  const info=document.createElement('div');
+  info.innerHTML=`<em>Declaring ${CONTRACT_LABEL[contract]}.</em>`;
+  p.appendChild(info);
+
+  const go=document.createElement('button'); go.textContent='Confirm';
+  const refresh=()=>{ go.disabled=!((!needTrump||state.trump!=null)&&(!needCalled||state.called!=null)); };
+  if(needTrump) p.appendChild(suitPicker('Trump', contract==='rik_beter'?2:null, sv=>{state.trump=sv; refresh();},s.forbiddenTrump));               // <-- new 4th arg: forbidden suit
+  if(needCalled) p.appendChild(suitPicker(isTroela4?'Call King':'Call Ace', null, sv=>{state.called=sv; refresh();}));
+  p.appendChild(go); refresh();
+  go.addEventListener('click',()=>act({action:'declare',
+    trump:state.trump, called:needCalled?state.called:null}));
+}
+
+function resultBox(s){
+  const r=s.lastResult, box=document.createElement('div');
+  const nm=i=>(s.seats.find(x=>x.seat===i)||{}).name||('s'+i);
+  let t, tone='';
+  if(r.contract==='pass_schoppenmie'){
+    t=`Schoppen Mie — ♠Q taken by ${nm(r.queenSeat)}, last trick by ${nm(r.lastTrickSeat)}.`;
+  } else if(r.target===0 || r.target===1){
+    const goal=r.target===0?'0 tricks (Misère)':'exactly 1 trick (Piek)';
+    t=`${CONTRACT_LABEL[r.contract]}: ${nm(r.declarer)} took ${r.tricks} — needed ${goal} — ${r.made?'✅ made':'❌ failed'}.`;
+    tone=r.made?'good':'bad';
+  } else {
+    const kapot = r.made && r.sideTricks===13;
+    t=`${CONTRACT_LABEL[r.contract]}: ${nm(r.declarer)}`
+      +(r.partner!=null?` + ${nm(r.partner)}`:'')
+      +` made ${r.sideTricks}/${r.target} — ${r.made?'✅ made':'❌ failed'} (M=${r.magnitude})`
+      +(kapot?' 🎉 KAPOT — all 13 tricks!':'')+'.';
+    tone=r.made?'good':'bad';
+  }
+  box.innerHTML=`<div style="margin:6px 0;font-size:15px" class="${tone==='good'?'':''}">${t}</div>`;
+  return box;
+}
+
+function renderLobby(){
+  document.getElementById('table').style.display='none';
+  document.getElementById('status').textContent='';
+  document.getElementById('hand').innerHTML='';
+  document.getElementById('panel').innerHTML=`
+    <div style="max-width:440px;margin:24px auto;background:#0b6b3a;padding:22px;
+         border-radius:16px;box-shadow:0 6px 24px #0007;text-align:left">
+      <h2 style="margin:.2em 0;text-align:center">New game</h2>
+      <p style="opacity:.85;font-size:14px;text-align:center">Play Rikken against three bots.</p>
+      <label style="display:block;margin:10px 0 4px">Your name</label>
+      <input id="pname" placeholder="Your name" maxlength="40" value="You" style="width:100%">
+      <label style="display:block;margin:12px 0 4px">Game ends</label>
+      <select id="endcond" style="width:100%;padding:8px;border-radius:8px">
+        <optgroup label="After a number of hands">
+          <option value="h4">4 hands (short)</option>
+          <option value="h8" selected>8 hands (standard)</option>
+          <option value="h12">12 hands (long)</option>
+        </optgroup>
+        <optgroup label="When a player reaches a score">
+          <option value="s50">First to 50 points</option>
+          <option value="s100">First to 100 points</option>
+          <option value="s150">First to 150 points</option>
+        </optgroup>
+      </select>
+      <div style="text-align:center"><button id="newbtn" style="margin-top:14px">Deal me in ▶</button></div>
+      <div id="lobbyerr" style="color:#ff8a8a;margin-top:8px;text-align:center"></div>
+    </div>`;
+  document.getElementById('newbtn').addEventListener('click', createGame);
+}
+async function createGame(){
+  const btn=document.getElementById('newbtn'); btn.disabled=true; btn.textContent='Dealing…';
+  try{
+    const name=(document.getElementById('pname').value||'You').trim();
+    const ec=document.getElementById('endcond').value;      // 'h8' or 's100'
+    const body={name};
+    if(ec[0]==='h') body.hands=+ec.slice(1);
+    else            body.target=+ec.slice(1);
+    const r=await fetch('newgame.php',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const s=await r.json();
+    if(s.error){document.getElementById('lobbyerr').textContent=s.error;
+      btn.disabled=false; btn.textContent='Deal me in ▶'; return;}
+    location.href=s.url;
+  }catch(e){document.getElementById('lobbyerr').textContent='could not create game';
+    btn.disabled=false; btn.textContent='Deal me in ▶';}
+}
+
+function finalScreen(s){
+  const box=document.createElement('div');
+  box.style.cssText='max-width:460px;margin:10px auto;background:#0b6b3a;padding:20px;'
+    +'border-radius:16px;box-shadow:0 6px 24px #0007';
+  const standings=(s.finalStandings||[]).slice();
+  const you=standings.find(r=>r.seat===s.viewerSeat);
+  const youWon=you && you.winner;
+  const medal=['🥇','🥈','🥉','4️⃣'];
+  let rows=standings.map((r,i)=>{
+    const me=r.seat===s.viewerSeat?' style="color:#e8c86a;font-weight:700"':'';
+    return `<tr${me}><td style="padding:4px 10px">${medal[i]||''}</td>`
+      +`<td style="padding:4px 10px;text-align:left">${r.name}${r.type==='bot'?' 🤖':''}</td>`
+      +`<td style="padding:4px 10px;text-align:right">${r.score>=0?'+':''}${r.score}</td></tr>`;
+  }).join('');
+  box.innerHTML=`<h2 style="margin:.2em 0">${youWon?'🎉 You win!':'Game over'}</h2>`
+    +`<table style="margin:8px auto;border-collapse:collapse">${rows}</table>`
+    +`<button id="againbtn" style="margin-top:10px">New game</button>`;
+  setTimeout(()=>{const b=box.querySelector('#againbtn');
+    if(b) b.addEventListener('click',()=>location.href='index.html');},0);
+  return box;
+}
+
+let momentTimer=null;
+function showMoment(bigText, smallText, tone){   // tone: 'good' | 'bad' | ''
+  const old=document.getElementById('moment'); if(old) old.remove();
+  const el=document.createElement('div'); el.id='moment';
+  el.innerHTML=`<div class="big ${tone||''}">${bigText}</div>`
+    +(smallText?`<div class="small">${smallText}</div>`:'');
+  const finish=()=>{ if(momentTimer){clearTimeout(momentTimer);momentTimer=null;} el.remove(); };
+  el.addEventListener('click',finish);
+  document.getElementById('table').appendChild(el);
+  momentTimer=setTimeout(finish, 3000);
+  return el;
+}
+
+// bootstrap
+if(!TOKEN){ renderLobby(); }
+else { document.getElementById('table').style.display=''; handleState(null); poll(); setInterval(poll,1500); }
+</script>
+</body>
+</html>
