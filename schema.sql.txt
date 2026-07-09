@@ -1,0 +1,330 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.3
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1:32771
+-- Generation Time: Jul 08, 2026 at 11:33 PM
+-- Server version: 8.0.13
+-- PHP Version: 8.4.20
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Database: `rikken`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `bids`
+--
+
+CREATE TABLE `bids` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `hand_id` bigint(20) UNSIGNED NOT NULL,
+  `seq` int(10) UNSIGNED NOT NULL,
+  `seat` tinyint(3) UNSIGNED NOT NULL,
+  `bid` enum('pass','rik','rik_beter','solo8','solo9','solo10','solo11','solo12','solo13','troela','misere','piek','open_misere','open_piek','open_misere_praatje') NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `games`
+--
+
+CREATE TABLE `games` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `status` enum('lobby','bidding','declaring','playing','hand_scoring','finished') NOT NULL DEFAULT 'lobby',
+  `deck_state` json DEFAULT NULL,
+  `imperfection` decimal(3,2) NOT NULL DEFAULT '0.15',
+  `hand_number` int(10) UNSIGNED NOT NULL DEFAULT '0',
+  `dealer_seat` tinyint(3) UNSIGNED NOT NULL DEFAULT '0',
+  `current_seat` tinyint(3) UNSIGNED DEFAULT NULL,
+  `current_hand_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `target_score` int(11) DEFAULT NULL,
+  `max_hands` int(11) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_activity` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `game_seats`
+--
+
+CREATE TABLE `game_seats` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `game_id` bigint(20) UNSIGNED NOT NULL,
+  `seat` tinyint(3) UNSIGNED NOT NULL,
+  `seat_type` enum('human','bot') NOT NULL,
+  `user_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `bot_level` enum('pub_regular') DEFAULT 'pub_regular',
+  `display_name` varchar(60) NOT NULL,
+  `seat_token` char(32) DEFAULT NULL,
+  `score` int(11) NOT NULL DEFAULT '0',
+  `connected` tinyint(1) NOT NULL DEFAULT '1',
+  `last_seen` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `hands`
+--
+
+CREATE TABLE `hands` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `game_id` bigint(20) UNSIGNED NOT NULL,
+  `hand_number` int(10) UNSIGNED NOT NULL,
+  `dealer_seat` tinyint(3) UNSIGNED NOT NULL,
+  `contract` enum('rik','rik_beter','solo8','solo9','solo10','solo11','solo12','solo13','troela','misere','piek','open_misere','open_piek','open_misere_praatje','pass_schoppenmie') DEFAULT NULL,
+  `declarer_seat` tinyint(3) UNSIGNED DEFAULT NULL,
+  `partner_seat` tinyint(3) UNSIGNED DEFAULT NULL,
+  `trump_suit` tinyint(3) UNSIGNED DEFAULT NULL,
+  `called_ace_suit` tinyint(3) UNSIGNED DEFAULT NULL,
+  `leader_seat` tinyint(3) UNSIGNED DEFAULT NULL,
+  `troela_occurred` tinyint(1) NOT NULL DEFAULT '0',
+  `status` enum('bidding','declaring','playing','scored') NOT NULL DEFAULT 'bidding',
+  `dealt_snapshot` json DEFAULT NULL,
+  `result_summary` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `hand_cards`
+--
+
+CREATE TABLE `hand_cards` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `hand_id` bigint(20) UNSIGNED NOT NULL,
+  `seat` tinyint(3) UNSIGNED NOT NULL,
+  `card` tinyint(3) UNSIGNED NOT NULL,
+  `played` tinyint(1) NOT NULL DEFAULT '0',
+  `play_seq` int(10) UNSIGNED DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tricks`
+--
+
+CREATE TABLE `tricks` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `hand_id` bigint(20) UNSIGNED NOT NULL,
+  `trick_number` tinyint(3) UNSIGNED NOT NULL,
+  `leader_seat` tinyint(3) UNSIGNED NOT NULL,
+  `led_suit` tinyint(3) UNSIGNED DEFAULT NULL,
+  `winner_seat` tinyint(3) UNSIGNED DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `trick_plays`
+--
+
+CREATE TABLE `trick_plays` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `trick_id` bigint(20) UNSIGNED NOT NULL,
+  `play_seq` tinyint(3) UNSIGNED NOT NULL,
+  `seat` tinyint(3) UNSIGNED NOT NULL,
+  `card` tinyint(3) UNSIGNED NOT NULL,
+  `face_down` tinyint(1) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `username` varchar(40) NOT NULL,
+  `display_name` varchar(60) NOT NULL,
+  `password_hash` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `bids`
+--
+ALTER TABLE `bids`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_bids_hand` (`hand_id`,`seq`);
+
+--
+-- Indexes for table `games`
+--
+ALTER TABLE `games`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_game_currenthand` (`current_hand_id`),
+  ADD KEY `idx_games_activity` (`status`,`last_activity`);
+
+--
+-- Indexes for table `game_seats`
+--
+ALTER TABLE `game_seats`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_game_seat` (`game_id`,`seat`),
+  ADD UNIQUE KEY `uq_seat_token` (`seat_token`),
+  ADD KEY `fk_seat_user` (`user_id`);
+
+--
+-- Indexes for table `hands`
+--
+ALTER TABLE `hands`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_game_hand` (`game_id`,`hand_number`);
+
+--
+-- Indexes for table `hand_cards`
+--
+ALTER TABLE `hand_cards`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_hand_card` (`hand_id`,`card`),
+  ADD KEY `idx_handcards_hand` (`hand_id`,`seat`,`played`);
+
+--
+-- Indexes for table `tricks`
+--
+ALTER TABLE `tricks`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_hand_trick` (`hand_id`,`trick_number`);
+
+--
+-- Indexes for table `trick_plays`
+--
+ALTER TABLE `trick_plays`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_trick_seq` (`trick_id`,`play_seq`);
+
+--
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `username` (`username`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `bids`
+--
+ALTER TABLE `bids`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `games`
+--
+ALTER TABLE `games`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `game_seats`
+--
+ALTER TABLE `game_seats`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `hands`
+--
+ALTER TABLE `hands`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `hand_cards`
+--
+ALTER TABLE `hand_cards`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `tricks`
+--
+ALTER TABLE `tricks`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `trick_plays`
+--
+ALTER TABLE `trick_plays`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `users`
+--
+ALTER TABLE `users`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `bids`
+--
+ALTER TABLE `bids`
+  ADD CONSTRAINT `fk_bids_hand` FOREIGN KEY (`hand_id`) REFERENCES `hands` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `games`
+--
+ALTER TABLE `games`
+  ADD CONSTRAINT `fk_game_currenthand` FOREIGN KEY (`current_hand_id`) REFERENCES `hands` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `game_seats`
+--
+ALTER TABLE `game_seats`
+  ADD CONSTRAINT `fk_seat_game` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_seat_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `hands`
+--
+ALTER TABLE `hands`
+  ADD CONSTRAINT `fk_hand_game` FOREIGN KEY (`game_id`) REFERENCES `games` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `hand_cards`
+--
+ALTER TABLE `hand_cards`
+  ADD CONSTRAINT `fk_handcards_hand` FOREIGN KEY (`hand_id`) REFERENCES `hands` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `tricks`
+--
+ALTER TABLE `tricks`
+  ADD CONSTRAINT `fk_tricks_hand` FOREIGN KEY (`hand_id`) REFERENCES `hands` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `trick_plays`
+--
+ALTER TABLE `trick_plays`
+  ADD CONSTRAINT `fk_plays_trick` FOREIGN KEY (`trick_id`) REFERENCES `tricks` (`id`) ON DELETE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
