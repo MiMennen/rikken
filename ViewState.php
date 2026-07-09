@@ -181,7 +181,11 @@ final class ViewState {
             'trick'  => (int)$r['trick_number'],
             'winner' => $r['winner_seat'] !== null ? (int)$r['winner_seat'] : null,
             'seat'   => (int)$r['seat'],
-            'card'   => (int)$r['card'],
+            'card' => ( (int)($r['face_down'] ?? 0) === 1
+            && $r['winner_seat'] === null
+            && (int)$r['seat'] !== $viewerSeat )
+            ? null
+            : (int)$r['card'],
         ], $log->fetchAll());
 
 		// ---- bidding log (drives client-side bid reveal) ----
