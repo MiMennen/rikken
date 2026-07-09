@@ -128,7 +128,7 @@ public static function chooseCard(int $gameId, int $handId, int $seat): int {
         $legal = PlayService::legalCards($handId, $seat);
         if (count($legal) === 1) return $legal[0];
 
-        $h = $pdo->prepare('SELECT trump_suit, partner_seat, declarer_seat, contract FROM hands WHERE id=?');
+        $h = $pdo->prepare('SELECT trump_suit, partner_seat, declarer_seat, contract, called_ace_suit FROM hands WHERE id=?');
         $h->execute([$handId]);
         $hand = $h->fetch();
         $cur  = PlayService::currentTrick($pdo, $handId);
@@ -137,6 +137,7 @@ public static function chooseCard(int $gameId, int $handId, int $seat): int {
             return self::chooseSchoppenMie($legal, $cur);
 
         $trump    = $hand['trump_suit'] !== null ? (int)$hand['trump_suit'] : null;
+		$calledSuit = $hand['called_ace_suit'] !== null ? (int)$hand['called_ace_suit'] : null;
         $declarer = (int)$hand['declarer_seat'];
         $partner  = $hand['partner_seat'] !== null ? (int)$hand['partner_seat'] : null;
         $sideSet  = [$declarer => true];
@@ -164,9 +165,23 @@ public static function chooseCard(int $gameId, int $handId, int $seat): int {
                 $trumps = array_values(array_filter($cards, fn(Card $c)=>$c->suit->value===$trump));
                 if ($trumps) {
                     $stopDrawing = false;
-                    // I legitimately know the partnership? (partner always; declarer after reveal)
-                    $knowsSide = $partner !== null
-                              && ($seat === $partner || self::calledCardFallen($pdo, $handId));
+
+                    // If no trumps remain in other hands, stop drawing.
+                    // For an as-yet-unconfirmed Rik, switch to forcing the ace:
+                    // lead the called suit so the partner must reveal.
+                    if (self::$drawTrumpSmart && self::noTrumpsOutstanding($pdo, $handId, $trump, $cards)) {
+                        if ($calledSuit !== null && !self::calledCardFallen($pdo, $handId)) {
+                            $callLead = array_values(array_filter(
+                                $cards, fn(Card $c) => $c->suit->value === $calledSuit));
+                            if ($callLead) return self::pick($callLead, $trump, true); // force the ace out
+                        }
+                        $stopDrawing = true; // no ace to chase (solo, or already revealed): keep trumps
+                    }
+					// I legitimately know my side? Solo = I'm the whole side (no hidden partner);
+                    // partner always knows; declarer only after the called card falls.
+                    $knowsSide = $partner === null
+                              || $seat === $partner
+                              || self::calledCardFallen($pdo, $handId);
                     if (self::$drawTrumpSmart && $knowsSide) {
                         $opps  = array_values(array_filter([0,1,2,3], fn($s)=>!isset($sideSet[$s])));
                         $voids = self::trumpVoidSeats($pdo, $handId, $trump);
@@ -254,6 +269,16 @@ public static function chooseCard(int $gameId, int $handId, int $seat): int {
                 $void[(int)$r['seat']] = true;
         }
         return array_keys($void);
+    }
+	
+	/** True if the bot holds every trump not yet played (none outstanding elsewhere). */
+    private static function noTrumpsOutstanding(PDO $pdo, int $handId, int $trump, array $cards): bool {
+        $played = (int)$pdo->query(
+            "SELECT COUNT(*) FROM trick_plays p JOIN tricks t ON p.trick_id=t.id
+             WHERE t.hand_id=$handId AND (p.card DIV 13)=$trump")->fetchColumn();
+        $mine = 0;
+        foreach ($cards as $c) if ($c->suit->value === $trump) $mine++;
+        return ($played + $mine) >= 13; // 13 trumps total; the rest are all in my hand
     }
 
     /** Has the card that publicly reveals the partner been played yet? */
