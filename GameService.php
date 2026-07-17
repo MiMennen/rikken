@@ -15,7 +15,7 @@ public static function create(array $seats, int $maxHands = 8, ?int $targetScore
         if (count($seats) !== 4) throw new InvalidArgumentException('Need exactly 4 seats.');
         return DB::tx(function (PDO $pdo) use ($seats, $maxHands, $targetScore, $rulesJson) {
             $ins = $pdo->prepare("INSERT INTO games (status, max_hands, target_score, rules_config) VALUES ('lobby', ?, ?, ?)");
-            $ins->execute([$maxHands, $targetScore]);
+            $ins->execute([$maxHands, $targetScore, $rulesJson]);
             $gameId = (int) $pdo->lastInsertId();
             $q = $pdo->prepare(
                 'INSERT INTO game_seats (game_id, seat, seat_type, user_id, display_name, seat_token)
