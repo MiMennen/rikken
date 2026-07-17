@@ -11,10 +11,10 @@ final class GameService {
      * Create a game with 4 seats. $seats is an array of 4:
      *   ['type'=>'human','user_id'=>1,'name'=>'Anne'] or ['type'=>'bot','name'=>'Bot Zuid']
      */
-public static function create(array $seats, int $maxHands = 8, ?int $targetScore = null): int {
+public static function create(array $seats, int $maxHands = 8, ?int $targetScore = null, ?string $rulesJson = null): int {
         if (count($seats) !== 4) throw new InvalidArgumentException('Need exactly 4 seats.');
-        return DB::tx(function (PDO $pdo) use ($seats, $maxHands, $targetScore) {
-            $ins = $pdo->prepare("INSERT INTO games (status, max_hands, target_score) VALUES ('lobby', ?, ?)");
+        return DB::tx(function (PDO $pdo) use ($seats, $maxHands, $targetScore, $rulesJson) {
+            $ins = $pdo->prepare("INSERT INTO games (status, max_hands, target_score, rules_config) VALUES ('lobby', ?, ?, ?)");
             $ins->execute([$maxHands, $targetScore]);
             $gameId = (int) $pdo->lastInsertId();
             $q = $pdo->prepare(
