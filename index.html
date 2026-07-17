@@ -93,10 +93,28 @@
     #announce{font-size:17px;padding:16px 22px;min-width:200px}
     #moment .big{font-size:20px}
   }
+
+	#help{position:fixed;inset:0;background:#000a;backdrop-filter:blur(4px);z-index:100;
+    display:none;overflow-y:auto;padding:20px}
+  #help.show{display:block}
+  #help .sheet{max-width:560px;margin:20px auto;background:#0b6b3a;color:#f2f2f2;
+    border-radius:16px;padding:22px 26px;box-shadow:0 10px 40px #000b}
+  #help h2{margin:.2em 0 .1em;text-align:center}
+  #help h3{color:var(--gold);margin:16px 0 4px;font-size:16px}
+  #help p,#help li{font-size:14px;line-height:1.5;opacity:.95}
+  #help .rules{background:#095a30;border:1px solid var(--gold);border-radius:10px;
+    padding:12px 16px;margin:10px 0}
+  #help .rules b{color:var(--gold)}
+  #help .closebar{text-align:center;margin-top:16px}
+	
 </style>
 </head>
 <body>
-  <h1>R I K K E N</h1>
+  <h1 style="position:relative">R I K K E N
+    <button id="helpBtn" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+      background:var(--gold);color:#222;border:none;border-radius:50%;width:34px;height:34px;
+      font-size:18px;font-weight:700;cursor:pointer" title="How to play">?</button>
+  </h1>
   <div id="err"></div>
   <div id="table">
     <div class="seat" id="north"></div>
@@ -108,6 +126,32 @@
   <div id="status"></div>
   <div id="panel"></div>
   <div id="hand"></div>
+	<div id="help">
+    <div class="sheet">
+      <h2>How to Play Rikken</h2>
+      <div id="helpRules" class="rules"></div>
+      <h3>The goal</h3>
+      <p>A trick-taking game for 4 (you + 3 bots). Each hand you bid what you'll achieve,
+         then play 13 tricks. Points are won and lost each hand.</p>
+      <h3>Bidding</h3>
+      <p>Each turn, pass or make a higher bid. Highest bidder decides the hand:</p>
+      <ul>
+        <li><b>Rik</b> — you + a secret partner try for ≥8 tricks (you pick trump and "call an ace"; whoever holds it is your hidden partner).</li>
+        <li><b>Solo 8–13</b> — go it alone for that many tricks.</li>
+        <li><b>Piek</b> — win exactly one trick, no trump.</li>
+        <li><b>Misère</b> — win zero tricks, no trump.</li>
+        <li><b>Open</b> versions — same, but hand face-up. Worth more.</li>
+      </ul>
+      <p>If everyone passes, a <b>Schoppen Mie</b> round is played: avoid taking the ♠Q trick and the last trick.</p>
+      <h3>Playing tricks</h3>
+      <p>Follow suit if you can. Highest trump wins, else highest of the led suit. Only your
+         legal cards are highlighted — tap one to lift it, tap again to play.</p>
+      <h3>Scoring</h3>
+      <p>Every hand is zero-sum. Making your contract wins points; failing loses them.
+         Watch for <b>Kapot</b> — winning all 13 as the Rik side is a big bonus!</p>
+      <div class="closebar"><button id="helpClose">Got it ▶</button></div>
+    </div>
+  </div>
 
 <script>
 const SUITS=['♣','♦','♥','♠'];
@@ -127,6 +171,25 @@ const REL_POS=[{x:0,y:72},{x:-96,y:0},{x:0,y:-72},{x:96,y:0}]; // s,w,n,e
 const TOUCH = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 const relOf=seat=>(seat-SEAT+4)%4;
 const seatDiv=seat=>document.getElementById(SCREEN[relOf(seat)]);
+
+// ---- Help overlay ----
+document.getElementById('helpBtn').addEventListener('click', ()=>{
+  renderHelpRules(latest);                       // fill in the current house rules
+  document.getElementById('help').classList.add('show');
+});
+document.getElementById('helpClose').addEventListener('click', ()=>{
+  document.getElementById('help').classList.remove('show');
+});
+function renderHelpRules(s){
+  const box=document.getElementById('helpRules');
+  const r=(s && s.houseRules) || null;
+  if(!r){ box.innerHTML='<b>House rules:</b> standard (defaults).'; return; }
+  box.innerHTML =
+    '<b>House rules in this game</b><br>'+
+    '• Spades may be led: '+r.spadeLead+'<br>'+
+    '• Queen of Spades: '+r.queenDiscard+'<br>'+
+    '• Kapot bonus: '+r.kapotBonus+' points';
+}
 
 let latest=null, busy=false, animating=false;
 let animShown=0, animHand=-1, tableCards=[], centerWinner=null;
