@@ -58,7 +58,9 @@ try {
 
     $token = GameService::seatToken($gid, 0);
     echo json_encode(['url'=>"index.html?token=$token"], JSON_THROW_ON_ERROR);
-} catch (\Throwable $e) {
+} 
+catch (\Throwable $e) {
+    error_log('newgame.php error: ' . $e->getMessage());   // full detail → server log (private)
     http_response_code(400);
-    echo json_encode(['error'=>$e->getMessage()]);
-}
+    echo json_encode(['error' => 'Could not create game. Please try again.']);
+}}

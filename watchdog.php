@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (php_sapi_name() !== 'cli') { http_response_code(403); exit('cli only'); }
 require_once __DIR__ . '/WatchdogService.php';
 require_once __DIR__ . '/CleanupService.php';
 
