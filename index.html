@@ -567,6 +567,21 @@ function renderLobby(){
           <option value="s150">First to 150 points</option>
         </optgroup>
       </select>
+	  <details style="margin-top:12px">
+ 		 <summary style="cursor:pointer;font-weight:600">House rules (optional)</summary>
+  		<label style="display:block;margin:10px 0 4px">Spades may be led…</label>
+  		<select id="spadeLead" style="width:100%;padding:8px;border-radius:8px">
+ 		   <option value="until_queen" selected>…once the ♠Q has fallen (default)</option>
+   		 <option value="first_trick">…after the first trick</option>
+   		 <option value="first_three">…after the first three tricks</option>
+    		<option value="until_any_spade">…once any spade has been played</option>
+  		</select>
+  		<label style="display:block;margin:12px 0 4px">Queen of Spades discard</label>
+  		<select id="queenDiscard" style="width:100%;padding:8px;border-radius:8px">
+    		<option value="forced" selected>Must be smeared when first void (default)</option>
+    		<option value="anytime">May be discarded any time you're void</option>
+  		</select>
+		</details>
       <div style="text-align:center"><button id="newbtn" style="margin-top:14px">Deal me in ▶</button></div>
       <div id="lobbyerr" style="color:#ff8a8a;margin-top:8px;text-align:center"></div>
     </div>`;
@@ -577,7 +592,11 @@ async function createGame(){
   try{
     const name=(document.getElementById('pname').value||'You').trim();
     const ec=document.getElementById('endcond').value;      // 'h8' or 's100'
-    const body={name};
+    const body={
+      name,
+      spadeLead:    document.getElementById('spadeLead').value,
+      queenDiscard: document.getElementById('queenDiscard').value
+    };
     if(ec[0]==='h') body.hands=+ec.slice(1);
     else            body.target=+ec.slice(1);
     const r=await fetch('newgame.php',{method:'POST',
