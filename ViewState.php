@@ -4,6 +4,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/HandService.php';
 require_once __DIR__ . '/PlayService.php';
 require_once __DIR__ . '/rikken_engine.php';
+require_once __DIR__ . '/Rules.php'
 
 final class ViewState {
 
@@ -35,7 +36,7 @@ final class ViewState {
     /** Build the state visible to $viewerSeat (0..3). */
     public static function build(int $gameId, int $viewerSeat): array {
         $pdo = DB::conn();
-        $g = $pdo->prepare('SELECT status, hand_number, dealer_seat, current_seat, current_hand_id, max_hands, target_score FROM games WHERE id=?');
+        $g = $pdo->prepare('SELECT status, hand_number, dealer_seat, current_seat, current_hand_id, max_hands, target_score, rules_config FROM games WHERE id=?');
         $g->execute([$gameId]);
         $game = $g->fetch();
         if (!$game) throw new RuntimeException("No game $gameId");
@@ -57,6 +58,7 @@ final class ViewState {
                                 'name'=>$r['display_name'], 'score'=>(int)$r['score']
                              ], $seatRows),
         ];
+		$out['houseRules'] = Rules::fromJson($game['rules_config'] ?? null)->summary();
 
         if ($game['current_hand_id'] === null) return $out;   // lobby
         $handId = (int)$game['current_hand_id'];
