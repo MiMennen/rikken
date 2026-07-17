@@ -43,4 +43,22 @@ final class Rules {
     public function queenDiscard(): string {
         return (string)($this->cfg['queenDiscard'] ?? 'forced');
     }
+    /** Human-readable house-rules summary for the client. */
+    public function summary(): array {
+        $leadLabels = [
+            'until_queen'     => 'once the ♠Q has fallen',
+            'first_trick'     => 'after the first trick',
+            'first_three'     => 'after the first three tricks',
+            'until_any_spade' => 'once any spade has been played',
+        ];
+        $qdLabels = [
+            'forced'  => 'must be smeared when first void',
+            'anytime' => 'may be discarded any time you are void',
+        ];
+        return [
+            'spadeLead'    => $leadLabels[$this->spadeLead()] ?? $this->spadeLead(),
+            'queenDiscard' => $qdLabels[$this->queenDiscard()] ?? $this->queenDiscard(),
+            'kapotBonus'   => $this->kapotBonus(),
+        ];
+    }
 }
