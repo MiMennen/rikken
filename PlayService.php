@@ -83,9 +83,11 @@ private const SPADE_QUEEN = 49; // Spades(3)*13 + (Q rank 12 - 2) = 49
         $leading = ($cur['trick'] === null || count($cur['plays']) === 0 || $cur['trick']['led_suit'] === null);
 
         if ($leading) {
-           if (!self::spadesMayBeLed($pdo, $handId, $qFallen, $onlySpades)) return $held;                 // spades open, or forced
+            if (self::spadesMayBeLed($pdo, $handId, $qFallen, $onlySpades)) {
+                return $held;                                          // spades allowed → any card
+            }
             $nonSpade = array_values(array_filter($held, fn($id)=>intdiv($id,13)!==3));
-            return $nonSpade !== [] ? $nonSpade : $held;               // no leading spades yet
+            return $nonSpade !== [] ? $nonSpade : $held;               // else: no spade leads yet
         }
 
         $ledSuit  = (int)$cur['trick']['led_suit'];
@@ -94,9 +96,10 @@ private const SPADE_QUEEN = 49; // Spades(3)*13 + (Q rank 12 - 2) = 49
 
         // void in led suit -> discarding:
         if (self::rulesFor($pdo, $handId)->queenDiscard() === 'forced'
-        && $void && in_array(self::SPADE_QUEEN, $held, true)) {
-        return [self::SPADE_QUEEN];        // forced variant: must dump the Queen now
-       }
+            && in_array(self::SPADE_QUEEN, $held, true)) {
+            return [self::SPADE_QUEEN];    // forced variant: must dump the Queen now
+        }
+        return $held;
        // 'anytime' variant: no forced smear — ♠Q is just a normal card when void,
        // so execution continues to the normal "discard anything legal" logic below.
         if ($qFallen || $onlySpades) return $held;                     // spades open / only spades
