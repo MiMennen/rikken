@@ -25,6 +25,10 @@ final class ScoringService {
                 throw new RuntimeException('Game not awaiting scoring.');
             $handId = (int)$game['current_hand_id'];
 
+			$rc = $pdo->prepare('SELECT rules_config FROM games WHERE id=?');
+			$rc->execute([$gameId]);
+			$rules = Rules::fromJson($rc->fetchColumn());
+
             $h = $pdo->prepare('SELECT contract, declarer_seat, partner_seat, result_summary FROM hands WHERE id=?');
             $h->execute([$handId]);
             $hand = $h->fetch();
@@ -47,7 +51,9 @@ final class ScoringService {
                     WHERE t.hand_id=$handId AND p.card=".self::SPADE_QUEEN_ID)->fetchColumn();
                 $lastSeat = $pdo->query("SELECT winner_seat FROM tricks WHERE hand_id=$handId ORDER BY trick_number DESC LIMIT 1")->fetchColumn();
                 foreach ([(int)$qSeat, (int)$lastSeat] as $off) {   // apply each offense
-                    for ($s=0;$s<4;$s++) $deltas[$s] += ($s===$off) ? -15 : 5;
+                    // was:  for ($s=0;$s<4;$s++) $deltas[$s] += ($s===$off) ? -15 : 5;
+					$pen = $rules->schoppenPenalty();
+					for ($s=0;$s<4;$s++) $deltas[$s] += ($s===$off) ? -$pen : intdiv($pen,3);
                 }
                 $summary += ['queenSeat'=>(int)$qSeat, 'lastTrickSeat'=>(int)$lastSeat];
             } 
@@ -71,8 +77,11 @@ final class ScoringService {
                 $sideTricks = $won[$declarer] + ($partner !== null ? $won[$partner] : 0);
                 $made = $sideTricks >= $cfg['target'];
                 $diff = abs($sideTricks - $cfg['target']);
-                $M = $cfg['base'] + $cfg['per'] * $diff;
-                if ($cfg['type']==='partner' && $made && $sideTricks === 13) $M += self::KAPOT_BONUS;
+                // was:  $M = $cfg['base'] + $cfg['per'] * $diff;
+				$M = $rules->base($contract) + $rules->per($contract) * $diff;
+
+				// was:  if ($cfg['type']==='partner' && $made && $sideTricks === 13) $M += self::KAPOT_BONUS;
+				if ($cfg['type']==='partner' && $made && $sideTricks === 13) $M += $rules->kapotBonus();
                 $sign = $made ? 1 : -1;
 
                 if ($cfg['type'] === 'partner') {
