@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 header('Content-Type: application/json');
-require_once __DIR__ . '/../GameService.php';
-require_once __DIR__ . '/../GameRunner.php';
+require_once __DIR__ . 'GameService.php';
+require_once __DIR__ . 'GameRunner.php';
 
 try {
     $in   = json_decode(file_get_contents('php://input'), true) ?? $_POST;
