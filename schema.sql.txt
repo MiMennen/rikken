@@ -165,6 +165,8 @@ CREATE TABLE `users` (
 -- Indexes for dumped tables
 --
 
+ALTER TABLE `games` ADD COLUMN `rules_config` JSON DEFAULT NULL AFTER `imperfection`;
+
 --
 -- Indexes for table `bids`
 --
