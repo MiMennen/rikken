@@ -4,6 +4,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/HandService.php';
 require_once __DIR__ . '/rikken_engine.php';
 require_once __DIR__ . '/Contracts.php';
+require_once __DIR__ . '/Rules.php';
 
 final class PlayService {
 
@@ -33,6 +34,46 @@ private const SPADE_QUEEN = 49; // Spades(3)*13 + (Q rank 12 - 2) = 49
         return (bool)$s->fetchColumn();
     }
 
+	/** Load the house rules for the game that owns this hand. */
+    private static function rulesFor(PDO $pdo, int $handId): Rules {
+        $s = $pdo->prepare('SELECT g.rules_config FROM games g
+            JOIN hands h ON h.game_id = g.id WHERE h.id = ?');
+        $s->execute([$handId]);
+        return Rules::fromJson($s->fetchColumn());
+    }
+
+    /** The trick currently in progress (rows are created at trick start → this is correct). */
+    private static function currentTrickNumber(PDO $pdo, int $handId): int {
+        $s = $pdo->prepare('SELECT COALESCE(MAX(trick_number),0) FROM tricks WHERE hand_id = ?');
+        $s->execute([$handId]);
+        return (int)$s->fetchColumn();
+    }
+
+    /** Has ANY spade (not just the Queen) appeared in a trick yet? */
+    private static function anySpadePlayed(PDO $pdo, int $handId): bool {
+        $s = $pdo->prepare('SELECT 1 FROM trick_plays p JOIN tricks t ON p.trick_id = t.id
+            WHERE t.hand_id = ? AND (p.card DIV 13) = 3 LIMIT 1');
+        $s->execute([$handId]);
+        return (bool)$s->fetchColumn();
+    }
+
+    /**
+     * Decision A, all four variants in one place.
+     * Returns TRUE if leading a spade is currently allowed.
+     * $qFallen and $onlySpades are the values your existing code already computes.
+     */
+    private static function spadesMayBeLed(PDO $pdo, int $handId, bool $qFallen, bool $onlySpades): bool {
+        if ($onlySpades) return true;                       // always allowed if you hold only spades
+        $rules = self::rulesFor($pdo, $handId);
+        switch ($rules->spadeLead()) {
+            case 'first_trick':     return self::currentTrickNumber($pdo, $handId) > 1;
+            case 'first_three':     return self::currentTrickNumber($pdo, $handId) > 3;
+            case 'until_any_spade': return self::anySpadePlayed($pdo, $handId);
+            case 'until_queen':
+            default:                return $qFallen;          // = current behaviour
+        }
+    }
+
     /** Legal cards for a Schoppen Mie hand (no-trump avoidance + spade lock). */
     private static function legalSchoppenMie(PDO $pdo, int $handId, array $held, array $cur): array {
         $qFallen = self::spadeQueenFallen($pdo, $handId);
@@ -42,7 +83,7 @@ private const SPADE_QUEEN = 49; // Spades(3)*13 + (Q rank 12 - 2) = 49
         $leading = ($cur['trick'] === null || count($cur['plays']) === 0 || $cur['trick']['led_suit'] === null);
 
         if ($leading) {
-            if ($qFallen || $onlySpades) return $held;                 // spades open, or forced
+           if (!self::spadesMayBeLed($pdo, $handId, $qFallen, $onlySpades)) return $held;                 // spades open, or forced
             $nonSpade = array_values(array_filter($held, fn($id)=>intdiv($id,13)!==3));
             return $nonSpade !== [] ? $nonSpade : $held;               // no leading spades yet
         }
@@ -52,7 +93,12 @@ private const SPADE_QUEEN = 49; // Spades(3)*13 + (Q rank 12 - 2) = 49
         if ($sameSuit !== []) return $sameSuit;                        // must follow suit
 
         // void in led suit -> discarding:
-        if (!$qFallen && in_array(self::SPADE_QUEEN, $held, true)) return [self::SPADE_QUEEN]; // forced ♠Q
+        if (self::rulesFor($pdo, $handId)->queenDiscard() === 'forced'
+        && $void && in_array(self::SPADE_QUEEN, $held, true)) {
+        return [self::SPADE_QUEEN];        // forced variant: must dump the Queen now
+       }
+       // 'anytime' variant: no forced smear — ♠Q is just a normal card when void,
+       // so execution continues to the normal "discard anything legal" logic below.
         if ($qFallen || $onlySpades) return $held;                     // spades open / only spades
         $nonSpade = array_values(array_filter($held, fn($id)=>intdiv($id,13)!==3));
         return $nonSpade !== [] ? $nonSpade : $held;                   // no discarding spades yet
