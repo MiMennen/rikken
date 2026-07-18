@@ -4,7 +4,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/HandService.php';
 require_once __DIR__ . '/PlayService.php';
 require_once __DIR__ . '/rikken_engine.php';
-require_once __DIR__ . '/Rules.php'
+require_once __DIR__ . '/Rules.php';
 
 final class ViewState {
 
